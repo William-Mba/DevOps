@@ -1,0 +1,44 @@
+parameters:
+- name: DotnetSdkVersion
+  type: string
+  default: 7.x
+- name: WorkingDirectory
+  type: string
+- name: ProjectDirectory
+  type: string
+- name: BuildConfiguration
+  type: string
+  default: Release
+- name: ProjectName
+  type: string
+- name: ExecuteBuild
+  default: true
+- name: FetchSubmodules
+  default: true
+- name: Checkouts
+  type: object
+  default: []
+
+jobs:
+- ${{if eq(parameters.ExecuteBuild, true)}}:
+  - job: Build
+    displayName: Build ${{parameters.ProjectName}}
+    steps:
+
+    - template: ../shared/step.checkout.yml
+      parameters:
+        Checkouts: ${{ parameters.Checkouts }}
+
+    - template: step.useDotnetSdk.yml
+      parameters:
+        DotnetSdkVersion: ${{ parameters.DotnetSdkVersion }}
+
+    - template: step.restore.yml
+      parameters:
+        ProjectDirectory: ${{ parameters.ProjectDirectory }}
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+    - template: step.build.yml
+      parameters:
+        ProjectDirectory: ${{ parameters.ProjectDirectory }}
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}

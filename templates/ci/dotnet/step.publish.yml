@@ -1,0 +1,29 @@
+parameters:
+- name: ProjectDirectory
+  type: string
+- name: WorkingDirectory
+  type: string
+  default: '$(System.DefaultWorkingDirectory)'
+- name: ArtifactName
+  type: string
+- name: BuildConfiguration
+  type: string
+  default: Release
+
+steps:
+- script: >
+    dotnet publish ${{ parameters.ProjectDirectory }} --no-build
+    --configuration ${{ parameters.BuildConfiguration }} 
+    --output $(Build.ArtifactStagingDirectory)/publish/$(Build.BuildNumber)
+  displayName: '[Dotnet] Publish'
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- script: |
+    cp -f '${{ parameters.ProjectDirectory }}/Dockerfile' '$(Build.ArtifactStagingDirectory)/publish/$(Build.BuildNumber)'
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+  displayName: 'Copy Dockerfile to artifact'
+
+- template: ../shared/step.publishArtifacts.yml
+  parameters:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/publish/$(Build.BuildNumber)'
+    ArtifactName: '${{ parameters.ArtifactName }}'

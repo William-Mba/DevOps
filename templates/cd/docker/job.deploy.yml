@@ -1,0 +1,104 @@
+parameters: 
+- name: Tags
+  type: string
+  default: ""
+- name: Command
+  type: string
+  default: up
+- name: Down
+  type: boolean
+  default: false
+- name: JobName
+  type: string
+  default: Deploy
+- name: Checkouts
+  type: object
+  default: []
+- name: Downloads
+  type: object
+  default: []
+- name: Validators
+  type: string
+- name: Environment
+  type: string
+- name: ComposeFile
+  type: string
+  default: ""
+- name: ResourceName
+  type: string
+  default: ""
+- name: DeploymentSlot
+  type: string
+- name: ComposeOptions
+  type: string
+  default: ""
+- name: CommandOptions
+  type: string
+  default: -d --force-recreate
+- name: WorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)
+- name: EnvironmentFiles
+  type: string
+  default: ""
+- name: CleanEnvironment
+  type: boolean
+  default: false
+- name: RequireValidation
+  type: boolean
+  default: true
+- name: PredeploymentTasks
+  type: object
+  default: []
+- name: PostdeploymentTasks
+  type: object
+  default: []
+
+jobs:
+- template: ../common/job.validate.yml
+  parameters:
+    Validators: ${{ parameters.Validators }}
+    RequireValidation: ${{ parameters.RequireValidation }}
+
+- deployment: ${{ parameters.JobName }}_${{ upper(parameters.DeploymentSlot) }}
+  dependsOn: Validate
+  displayName: 'Deploy ${{ upper(parameters.DeploymentSlot) }}'
+  environment:
+    resourceType: VirtualMachine
+    name: ${{ parameters.Environment }}
+    ${{ if ne(length(parameters.ResourceName), 0) }}:
+      resourceName: ${{ parameters.ResourceName }}
+    ${{ else }}:
+      tags: ${{ parameters.Tags }}
+  workspace: 
+    clean: all
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+
+        - template: ../common/step.download.yml
+          parameters:
+            Downloads: ${{ parameters.Downloads }}
+        
+        - template: ../common/step.checkout.yml
+          parameters:
+            Checkouts: ${{ parameters.Checkouts }}
+        
+        - ${{ parameters.PredeploymentTasks }}
+
+        - template: step.compose.yml
+          parameters:
+            Command: ${{ parameters.Command }}
+            ComposeOptions: ${{ parameters.ComposeOptions }}
+            CommandOptions: ${{ parameters.CommandOptions }}
+            ComposeFile: ${{ parameters.ComposeFile }}
+            EnvironmentFiles: ${{ parameters.EnvironmentFiles }}
+            WorkingDirectory: ${{ parameters.WorkingDirectory }}
+        
+        - ${{ parameters.PostdeploymentTasks }}
+
+        - ${{ if eq(parameters.CleanEnvironment, true)}}:
+          - template: step.cleanup.yml
+            parameters:
+              WorkingDirectory: ${{ parameters.WorkingDirectory }}

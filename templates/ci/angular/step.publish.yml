@@ -1,0 +1,28 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+- name: CommandsToExecuteBefore
+  type: object
+- name: CopyDockerfileAndConfig
+  type: boolean
+  default: false
+
+steps:
+- ${{ if ne(length(parameters.CommandsToExecuteBefore), 0) }}:
+  - ${{ each command in parameters.CommandsToExecuteBefore }}:
+    - script: ${{ command.script }}
+      ${{ if gt(length(command.displayName), 4) }}:
+        displayName: ${{ command.displayName }}
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+      continueOnError: true
+
+- script: npm run publish
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+  displayName: 'Build project'
+
+- ${{ if eq(parameters.CopyDockerfileAndConfig, true) }}:
+  - script: |
+      cp -f '${{ parameters.WorkingDirectory }}/Dockerfile' './dist'
+      cp -rf '${{ parameters.WorkingDirectory }}/config' './dist'
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    displayName: 'Copy Dockerfile and config to artifact'

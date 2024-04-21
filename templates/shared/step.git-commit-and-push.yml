@@ -1,0 +1,33 @@
+#  Variables required:
+#
+# - AZP_PAT
+#
+#
+parameters:
+- name: CommitMessage
+  type: string
+- name: UserName
+  type: string
+  default: $(Build.RequestedFor)
+- name: DisplayName
+  type: string
+  default: Commit and Push Changes
+- name: UserEmail
+  type: string
+  default: $(Build.RequestedForEmail)
+- name: BranchName
+  type: string
+  default: "continous-integration/$(Build.DefinitionName)-$(Build.BuildNumber)"
+
+steps:
+- bash: |
+    B64_PAT=$(printf ":%s" "$MY_PAT" | base64);
+    git config --local user.email ${{ parameters.UserEmail }};
+    git config --local user.name ${{ parameters.UserName }};
+    git checkout -b ${{ parameters.BranchName }}
+    git add .
+    git commit -m "${{ parameters.CommitMessage }}"
+    git -c http.extraHeader="Authorization: Basic ${B64_PAT}" push -u origin ${{ parameters.BranchName }}
+  displayName: ${{ parameters.DisplayName }}
+  env:
+    MY_PAT: $(AZP_PAT)

@@ -1,0 +1,4 @@
+steps:
+- script: |
+    readarray -t branches <<< $(git branch -r | grep -Eo 'origin/test/.*')
+    for b in ${branches[@]}; do git branch -r -D $b; done;

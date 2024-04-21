@@ -1,0 +1,71 @@
+parameters: 
+- name: ProjectName
+  type: string
+  default: 'Aurora'
+- name: Environment
+  type: object
+- name: WorkingDirectory
+  type: string
+  default: '$(Build.SourcesDirectory)'
+- name: CommandsToExecuteBefore
+  type: object
+  default: 
+  - script: >
+      docker network create aurora
+      --driver=bridge --subnet=172.16.238.0/24 
+      --ip-range=172.16.238.0/24 --gateway=172.16.238.1
+      --label="io.portainer.accesscontrol.teams=Aurora"
+    displayName: Create aurora network
+- name: Validators # Instead of specifying specific users, we can send an email to a group using the [org name]\group name syntax.
+  type: string
+- name: ValidationInstructions
+  type: string
+  default: 'Please validate the deployment configuration and resume'
+- name: RequireValidation
+  type: boolean
+- name: ArtifactSources
+  type: object
+  default:
+  - name: fm-api # reference 'ci-finances-fm-api' pipeline
+    artifactName: finances-fm-api
+    downloadPath: $(Pipeline.Workspace)/fm-api/finances-fm-api
+  - name: fm-api
+    artifactName: scripts
+    downloadPath: $(Pipeline.Workspace)/fm-api/scripts
+
+jobs:
+- template: common/job.validate.yml@templates
+  parameters:
+    RequireValidation: ${{ parameters.RequireValidation }}
+    Validators: ${{ parameters.Validators }}
+    ValidationInstructions: ${{ parameters.ValidationInstructions }}
+
+- deployment: Deploy
+  dependsOn: Validate
+  displayName: 'Deploy to ${{ parameters.Environment }}'
+  environment: dev #${{ parameters.Environment }}
+  workspace: 
+    clean: all
+  variables:
+  - name: EnvironmentFile
+    value: docker/aurora/shared/.config/${{ parameters.Environment }}.env
+  - name: ComposeFile
+    value: docker/aurora/compose.${{ parameters.Environment }}.yml
+  strategy:
+    # default deployment strategy, more coming...
+    runOnce:
+      deploy:
+        steps:
+        - ${{ if ne(parameters.Environment, 'master')}}: # Avoid downtime in production
+          - template: docker/step.down.yml@templates
+            parameters:
+              EnvironmentFile: '../infrastructure-docker/shared/.config/${{ parameters.Environment }}.env'
+              ComposeFile: '../infrastructure-docker/compose.${{ parameters.Environment }}.yml'
+              WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+        - template: docker/step.startup.yml@templates
+          parameters:
+            EnvironmentFile: '../infrastructure-docker/shared/.config/${{ parameters.Environment }}.env'
+            ComposeFile: '../infrastructure-docker/compose.${{ parameters.Environment }}.yml'
+            CommandsToExecuteBefore: ${{ parameters.CommandsToExecuteBefore }}
+            WorkingDirectory: ${{ parameters.WorkingDirectory }}

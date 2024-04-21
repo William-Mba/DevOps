@@ -1,0 +1,72 @@
+parameters:
+- name: Command
+  type: string
+- name: SqlFolder
+  type: string
+- name: PublishScripts
+  type: boolean
+  default: false
+- name: PublishReports
+  type: boolean
+  default: true
+- name: ReportsFolder
+  type: string
+- name: ConfigFile
+  type: string
+- name: DbUser
+  type: string
+- name: DbName
+  type: string
+- name: DbPassword
+  type: string
+- name: SqlServer
+  type: string
+- name: WorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)
+- name: Checkouts
+  type: object
+  default: []
+- name: Downloads
+  type: object
+  default: []
+- name: GitClean
+  type: boolean
+  default: false
+
+steps:
+- template: ../common/step.download.yml
+  parameters:
+    Downloads: ${{ parameters.Downloads }}
+
+- template: ../common/step.checkout.yml
+  parameters:
+    Checkouts: ${{ parameters.Checkouts }}
+    GitClean: ${{ parameters.GitClean }}
+
+- script: >
+    docker run --rm
+    -v ./${{ parameters.SqlFolder }}:/flyway/sql:ro
+    -v ./${{ parameters.ConfigFile }}:/flyway/conf/flyway.conf:ro
+    -v ./${{ parameters.ReportsFolder }}/report.html:/flyway/report.html
+    $(FLYWAY_IMAGE) ${{ parameters.Command }}
+    -user=${{ parameters.DbUser }} -password=${{ parameters.DbPassword }}
+    -url='jdbc:sqlserver://${{ parameters.SqlServer }};databaseName=${{ parameters.DbName }};trustServerCertificate=true;'
+  displayName: 'Migrate $(dbName)'
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- ${{ if eq(parameters.PublishScripts, true) }}:
+  - template: ../common/step.publishArtifacts.yml
+    parameters:
+      PathtoPublish: ${{ parameters.WorkingDirectory }}/${{ parameters.SqlFolder }}
+      ArtifactName: Scripts
+      DisplayName: 'Publish scripts'
+      StoreAsTar: false
+
+- ${{ if eq(parameters.PublishReports, true) }}:
+  - template: ../common/step.publishArtifacts.yml
+    parameters:
+      PathtoPublish: ${{ parameters.WorkingDirectory }}/${{ parameters.ReportsFolder }}
+      ArtifactName: Reports
+      DisplayName: 'Publish reports'
+      StoreAsTar: false

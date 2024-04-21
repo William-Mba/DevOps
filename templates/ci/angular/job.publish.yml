@@ -1,0 +1,68 @@
+parameters:
+- name: ProjectName
+  type: string
+- name: ArtifactName
+  type: string
+- name: WorkingDirectory
+  default: $(Pipeline.Workspace)/finances-fm
+- name: SocleWorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)/finances-fm/finances/angular
+- name: Dockerfile
+  type: string
+- name: DockerRepository
+  type: string
+- name: DockerRegistry
+  type: string
+- name: ImageTags
+  type: string
+- name: ExecutePublish
+  default: true
+- name: Checkouts
+  type: object
+  default: []
+- name: NodeVersion
+  type: string
+  default: '20.x'
+- name: PublishDockerImage
+  type: boolean
+  default: false
+
+jobs:
+- ${{ if eq(parameters.ExecutePublish, true) }}:
+  - job: Publish
+    displayName: Publish ${{ parameters.ProjectName }}
+    steps:
+
+    - template: ../shared/step.checkout.yml
+      parameters:
+        Checkouts: ${{ parameters.Checkouts }}
+
+    - template: step.useNode.yml
+      parameters:
+        NodeVersion: ${{ parameters.NodeVersion }}
+
+    - template: step.installDependencies.yml
+      parameters:
+        WorkingDirectory: ${{ parameters.SocleWorkingDirectory }}
+
+    - template: step.pubish.yml
+      parameters:
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+        CopyDockerfileAndConfig: true
+        CommandsToExecuteBefore:
+        - script: ln -s ${{ parameters.SocleWorkingDirectory }}/node_modules/ node_modules
+          displayName: Create symbolic
+
+    - template: ../shared/step.publishArtifacts.yml
+      parameters:
+        PathtoPublish: '${{ parameters.WorkingDirectory }}/dist'
+        ArtifactName: '${{ parameters.ArtifactName }}'
+
+    - ${{ if eq(parameters.PublishDockerImage, true) }}:
+      - template: ../shared/step.buildAndPushDockerImage.yml
+        parameters:
+          Dockerfile: '${{ parameters.WorkingDirectory }}/dist/Dockerfile'
+          ContainerRegistry: ${{ parameters.DockerRegistry }}
+          Repository: ${{ parameters.DockerRepository }}
+          Tags: ${{ parameters.ImageTags }}

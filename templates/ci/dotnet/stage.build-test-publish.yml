@@ -1,0 +1,97 @@
+parameters:
+- name: ImageName
+  type: string
+- name: ImageTags
+  type: string
+- name: TagToScan
+  type: string
+  default: dev
+- name: Checkouts
+  type: object
+  default: []
+- name: PoolName
+- name: ProjectName
+  type: string
+- name: ImageRepository
+  type: string
+- name: ArtifactName
+  type: string
+- name: ArtifactsDirectory
+  type: string
+  default: artifacts
+- name: ContainerRegistry
+  type: string
+- name: Dockerfile
+  type: string
+  default: 'CI.Backend.Dockerfile'
+- name: WorkingDirectory
+  type: string
+- name: PublishToRegistry
+  type: boolean
+  default: false
+- name: StoreArtifactsAsTar
+  type: boolean
+  default: false
+- name: PathToPublish
+  type: string
+  default: 'artifacts/aspnet-core'
+
+stages:
+- stage: CI
+  displayName: Continuous Integration
+  jobs:      
+  - job: CI
+    displayName: Continuous Integration
+    pool:
+      name: ${{ parameters.PoolName }}
+      demands:
+      - docker
+      - Agent.OS -equals Linux
+    steps:
+    - template: ../common/step.checkout.yml
+      parameters:
+        Checkouts: ${{ parameters.Checkouts }}
+
+    - template: ../docker/step.build.yml
+      parameters:
+        BuildFor: CI
+        Tag: ci
+        Image: ${{ parameters.ImageName }}
+        Dockerfile: ${{ parameters.Dockerfile }}
+        ProjectName: ${{ parameters.ProjectName }}
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+    - template: ../docker/step.build.yml
+      parameters:
+        Image: ${{ parameters.ImageName }}
+        Tag: ${{ parameters.TagToScan }}
+        Dockerfile: ${{ parameters.Dockerfile }}
+        ProjectName: ${{ parameters.ProjectName }}
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+    - task: PublishTestResults@2
+      displayName: '[Publish] Test results'
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '**/*.trx'
+        searchFolder: '${{ parameters.WorkingDirectory }}'
+        testRunTitle: '${{ parameters.ProjectName }} - Test results $(Build.BuildNumber)'
+
+    - template: ../common/step.publishArtifacts.yml
+      parameters:
+        ArtifactName: '${{ parameters.ArtifactName }}'
+        PathtoPublish: ${{ parameters.WorkingDirectory }}/${{ parameters.PathToPublish }}
+        StoreAsTar: ${{ parameters.StoreArtifactsAsTar }}
+
+    - template: ../security/step.trivy.yml
+      parameters:
+        PathToScan: ${{ parameters.WorkingDirectory }}/${{ parameters.PathToPublish }}
+        ImageToScan: ${{ parameters.ImageName }}:${{ parameters.TagToScan }}
+
+    - ${{ if eq(parameters.PublishToRegistry, true ) }}:
+      - template: ../docker/step.buildAndPush.yml
+        parameters:
+          Tags: ${{ parameters.ImageTags }}
+          ContainerRegistry: ${{ parameters.ContainerRegistry }}
+          Repository: ${{ parameters.ImageRepository }}/${{ parameters.ImageName }}
+          Dockerfile: ${{ parameters.WorkingDirectory }}/${{ parameters.PathtoPublish }}/**/Dockerfile

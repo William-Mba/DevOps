@@ -1,0 +1,92 @@
+#stackify           IP: 172.16.238.11
+#redis_insight-1		IP: 172.16.238.21
+#mailpit-1				  IP: 172.16.238.22
+#socle-1			    	IP: 172.16.238.23
+#grh-1				    	IP: 172.16.238.24
+#gidoc-1			    	IP: 172.16.238.25
+#grp-1				    	IP: 172.16.238.26
+#gf-1				        IP: 172.16.238.27
+
+version: '3.8'
+
+name: aurora_dev
+
+services:
+  nginx:
+    extends:
+      file: ./shared/services/compose.${ENVIRONMENT_NAME}.yml
+      service: nginx
+    depends_on:
+    - socle
+    - grh
+    - grp
+    - gf
+
+  socle:
+    extends:
+      file: ./socle/compose.${ENVIRONMENT_NAME}.yml
+      service: socle
+    depends_on:
+    - redis
+
+  grh:
+    extends:
+      file: ./grh/compose.${ENVIRONMENT_NAME}.yml
+      service: grh
+    depends_on:
+    - redis
+
+  gf:
+    extends:
+      file: ./gf/compose.${ENVIRONMENT_NAME}.yml
+      service: gf
+    depends_on:
+    - redis
+      
+  grp:
+    extends:
+      file: ./grp/compose.${ENVIRONMENT_NAME}.yml
+      service: grp
+    depends_on:
+    - redis
+
+# Common services --------------
+  gidoc:
+    extends:
+      file: ./shared/services/compose.${ENVIRONMENT_NAME}.yml
+      service: gidoc
+
+  redis:
+    extends:
+      file: ./shared/services/compose.${ENVIRONMENT_NAME}.yml
+      service: redis
+
+  redis_insight:
+    extends:
+      file: ./shared/services/compose.${ENVIRONMENT_NAME}.yml
+      service: redis_insight
+
+  mailpit:
+    extends:
+      file: ./shared/services/compose.${ENVIRONMENT_NAME}.yml
+      service: mailpit
+
+  stackify:
+    extends:
+      file: ./shared/services/compose.${ENVIRONMENT_NAME}.yml
+      service: stackify
+
+volumes:
+  redis_data:
+    labels:
+      - "io.portainer.accesscontrol.teams=Aurora"
+  redis_insight_data:
+    labels:
+      - "io.portainer.accesscontrol.teams=Aurora"
+  stackify:
+    labels:
+      - "io.portainer.accesscontrol.teams=Aurora"
+
+networks:
+  aurora:
+    external: true

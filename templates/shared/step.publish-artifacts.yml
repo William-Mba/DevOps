@@ -1,0 +1,24 @@
+parameters:
+- name: PathtoPublish
+  type: string
+- name: ArtifactName
+  type: string
+- name: StoreAsTar
+  type: boolean
+  default: true
+- name: ContinueOnError
+  type: boolean
+  default: true
+- name: DisplayName
+  type: string
+  default: 'Publish build artifact'
+
+steps:
+- task: PublishBuildArtifacts@1
+  displayName: ${{ parameters.DisplayName }}
+  continueOnError: ${{ parameters.ContinueOnError }}
+  timeoutInMinutes: 1
+  inputs:
+    pathtoPublish: ${{ parameters.PathtoPublish }}
+    artifactName: ${{ parameters.ArtifactName }}
+    StoreAsTar: ${{ parameters.StoreAsTar }}

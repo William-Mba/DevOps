@@ -1,0 +1,43 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)
+- name: DotnetSdkVersion
+  type: string
+  default: 7.x
+- name: TestProjectDirectory
+  type: string
+- name: TestResultsDirectory
+  type: string
+- name: ProjectName
+  type: string
+- name: ExecuteTest
+  default: true
+- name: Checkouts
+  type: object
+  default: []
+- name: GitCleaned
+  type: boolean
+  default: false
+  
+jobs:
+- ${{ if eq(parameters.ExecuteTest, true) }}:
+  - job: Test
+    displayName: Test ${{ parameters.ProjectName }}
+    steps:
+
+    - template: ../shared/step.checkout.yml
+      parameters:
+        Checkouts: ${{ parameters.Checkouts }}
+
+    - template: step.useDotnetSdk.yml
+      parameters:
+        DotnetSdkVersion: ${{ parameters.DotnetSdkVersion }}
+
+    - template: step.testAndPublishResults.yml
+      parameters:
+        ProjectName: '${{ parameters.ProjectName }}'
+        GitCleaned: ${{ parameters.GitCleaned }}
+        ProjectDirectory: ${{ parameters.TestProjectDirectory }}
+        TestResultsDirectory: ${{ parameters.TestResultsDirectory }}
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}

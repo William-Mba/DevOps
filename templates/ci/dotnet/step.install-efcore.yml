@@ -1,0 +1,12 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+  default: '$(System.DefaultWorkingDirectory)'
+- name: Version
+  type: string
+  default: '7.0'
+
+steps:
+- script: dotnet tool install --global dotnet-ef --version ${{ parameters.Version }}
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+  displayName: '[Dotnet] Install EF Core ${{ parameters.Version }}'

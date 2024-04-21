@@ -1,0 +1,52 @@
+parameters:
+- name: Command
+  type: string
+  default: up
+- name: ComposeFile
+  type: string
+  default: ""
+- name: ComposeOptions
+  type: string
+  default: ""
+- name: CommandOptions
+  type: string
+  default: -d --force-recreate
+- name: EnvironmentFiles
+  type: string
+  default: ""
+- name: DisplayName
+  type: string
+  default: "Docker compose"
+- name: WorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)
+
+steps:
+
+- ${{ if and(ne(length(parameters.EnvironmentFiles), 0), ne(length(parameters.ComposeFile), 0)) }}:
+  - bash: >
+      docker-compose ${{ parameters.ComposeOptions }}
+      $(for i in ${{ parameters.EnvironmentFiles }}; do echo --env-file "$i"; done)
+      -f ${{ parameters.ComposeFile }} ${{ parameters.Command }} ${{ parameters.CommandOptions }}
+    displayName: ${{ parameters.DisplayName }} ${{ parameters.Command }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    
+- ${{ elseif and(eq(length(parameters.EnvironmentFiles), 0), ne(length(parameters.ComposeFile), 0)) }}:
+  - bash: >
+      docker-compose ${{ parameters.ComposeOptions }} -f ${{ parameters.ComposeFile }}
+      ${{ parameters.Command }} ${{ parameters.CommandOptions }}
+    displayName: ${{ parameters.DisplayName }} ${{ parameters.Command }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    
+- ${{ elseif and(ne(length(parameters.EnvironmentFiles), 0), eq(length(parameters.ComposeFile), 0)) }}:
+  - bash: >
+      docker-compose ${{ parameters.ComposeOptions }}
+      $(for i in ${{ parameters.EnvironmentFiles }}; do echo --env-file "$i"; done)
+      ${{ parameters.Command }} ${{ parameters.CommandOptions }}
+    displayName: ${{ parameters.DisplayName }} ${{ parameters.Command }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- ${{ elseif and(eq(length(parameters.EnvironmentFiles), 0), eq(length(parameters.ComposeFile), 0)) }}:
+  - bash: docker-compose ${{ parameters.ComposeOptions }} ${{ parameters.Command }} ${{ parameters.CommandOptions }}
+    displayName: ${{ parameters.DisplayName }} ${{ parameters.Command }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}

@@ -1,0 +1,10 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+  default: '$(Pipeline.Workspace)'
+
+steps:
+- script: docker system prune -f
+  displayName: Cleanup environment
+  condition: succeededOrFailed()
+  workingDirectory: ${{ parameters.WorkingDirectory }}

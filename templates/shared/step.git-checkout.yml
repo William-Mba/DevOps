@@ -1,0 +1,21 @@
+parameters:
+- name: Checkouts
+  type: object
+  default: []
+- name: GitClean
+  type: boolean
+  default: false
+- name: Submodules
+  type: string
+  default: true # recursive - none
+
+steps:
+- ${{ if ne(length(parameters.Checkouts), 0) }}:
+  - ${{ each item in parameters.Checkouts }}:
+    - checkout: ${{ item.checkout }}
+      fetchDepth: 0
+      path: ${{ item.path }}
+      persistCredentials: true
+      clean: ${{ parameters.GitClean }}
+      submodules: ${{ parameters.Submodules }}
+      displayName: Checkout ${{ item.checkout }}

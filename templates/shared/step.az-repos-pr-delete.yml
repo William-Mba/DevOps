@@ -1,0 +1,14 @@
+steps:
+- bash: >
+    readarray -t array <<< $(az repos pr list
+    --creator [creator_email]
+    --project [project_name]
+    --org "https://dev.azure.com/PGSol/"
+    --repository [repo_name]
+    --target-branch [i.e: develop]
+    --status active --output tsv --query '[*].codeReviewId');
+    for id in ${array[@]}; do
+        az repos pr update --id $id --delete-source-branch true --status abandoned -o table
+    done;
+  env:
+    AZURE_DEVOPS_EXT_PAT: $(azp_pat)

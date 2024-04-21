@@ -1,0 +1,53 @@
+parameters:
+- name: ProjectName
+  type: string
+- name: DisplayName
+  type: string
+  default: '[Dotnet] Test'
+- name: WorkingDirectory
+  type: string
+- name: ProjectDirectory
+  type: string
+- name: TestResultsDirectory
+  type: string
+- name: BuildConfiguration
+  type: string
+  default: Release
+- name: GitCleaned
+  type: boolean
+  default: false
+- name: PublishTestResults
+  type: boolean
+  default: true
+
+steps:
+- ${{ if eq(parameters.GitCleaned, true) }}:
+  - script: >
+      dotnet test ${{ parameters.ProjectDirectory }}
+      --configuration ${{ parameters.BuildConfiguration }} 
+      --logger "trx;logFileName=Test-results-$(Build.BuildId).trx" 
+      --results-directory "${{ parameters.TestResultsDirectory }}"
+      --collect "Code coverage"
+    displayName: ${{ parameters.DisplayName }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    continueOnError: true
+- ${{ else }}:
+  - script: >
+      dotnet test ${{ parameters.ProjectDirectory }} --no-build
+      --configuration ${{ parameters.BuildConfiguration }} 
+      --logger "trx;logFileName=Test-results-$(Build.BuildId).trx" 
+      --results-directory "${{ parameters.TestResultsDirectory }}"
+      --collect "Code coverage"
+    displayName: ${{ parameters.DisplayName }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    continueOnError: true
+
+- ${{ if eq(parameters.PublishTestResults, true) }}:
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    inputs:
+      testResultsFormat: 'VSTest'
+      testResultsFiles: '**/*$(Build.BuildId).trx'
+      searchFolder: '${{ parameters.TestResultsDirectory }}'
+      testRunTitle: '${{ parameters.ProjectName }}'
+      buildConfiguration: ${{ parameters.BuildConfiguration }} 

@@ -1,0 +1,47 @@
+parameters: 
+- name: Environment
+  type: string
+- name: WorkingDirectory
+  type: string
+  default: '$(Build.SourcesDirectory)'
+- name: CommandsToExecuteBefore
+  type: object
+- name: Validators
+  type: string
+- name: ValidationInstructions
+  type: string
+  default: 'Please validate the deployment configuration and resume'
+- name: RequireValidation
+  type: boolean
+
+jobs:
+- template: common/job.validate.yml@templates
+  parameters:
+    RequireValidation: ${{ parameters.RequireValidation }}
+    Validators: ${{ parameters.Validators }}
+    ValidationInstructions: ${{ parameters.ValidationInstructions }}
+
+- deployment: Deploy
+  dependsOn: Validate
+  displayName: 'Deploy to ${{ parameters.Environment }}'
+  environment: dev #${{ parameters.Environment }}
+  workspace: 
+    clean: all
+  strategy:
+    # default deployment strategy, more coming...
+    runOnce:
+      deploy:
+        steps:
+        - ${{ if ne(parameters.Environment, 'master')}}: # Avoid downtime in production
+          - template: docker/step.down.yml@templates
+            parameters:
+              EnvironmentFile: '../infrastructure-docker/shared/.config/${{ parameters.Environment }}.env'
+              ComposeFile: '../infrastructure-docker/socle/compose.${{ parameters.Environment }}.yml'
+              WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+        - template: docker/step.startup.yml@templates
+          parameters:
+            EnvironmentFile: '../infrastructure-docker/shared/.config/${{ parameters.Environment }}.env'
+            ComposeFile: '../infrastructure-docker/socle/compose.${{ parameters.Environment }}.yml'
+            CommandsToExecuteBefore: ${{ parameters.CommandsToExecuteBefore }}
+            WorkingDirectory: ${{ parameters.WorkingDirectory }}

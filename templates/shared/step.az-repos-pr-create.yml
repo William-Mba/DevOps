@@ -1,0 +1,55 @@
+#  Variables required:
+#
+# - AZP_PAT
+#
+#
+parameters:
+- name: Reviewers
+  type: string
+- name: Squash
+  type: boolean
+  default: true
+- name: Draft
+  type: boolean
+  default: false
+- name: DisplayName
+  type: string
+  default: Create Pull Request
+- name: Project
+  type: string
+  default: $(System.TeamProject)
+- name: TargetBranch
+  type: string
+  default: "$(Build.SourceBranch)"
+- name: Repository
+  type: string
+  default: $(Build.Repository.Name)
+- name: Organisation
+  type: string
+  default: "https://dev.azure.com/Ecologiciel/"
+- name: SourceBranch
+  type: string
+  default: "refs/heads/continous-integration/$(Build.DefinitionName)-$(Build.BuildNumber)"
+- name: Description
+  type: string
+  default: "Please review this pull request and approve/complete if needed."
+- name: Title
+  type: string
+  default: "PR automatically created by $(Build.DefinitionName) pipeline for migrations scripts integration"
+
+steps:
+- script: >
+    az repos pr create
+    --draft ${{ parameters.Draft }}
+    --title "${{ parameters.Title }}"
+    --squash ${{ parameters.Squash }}
+    --project ${{ parameters.Project }}
+    --org ${{ parameters.Organisation }}
+    --reviewers ${{ parameters.Reviewers }}
+    --repository ${{ parameters.Repository }}
+    --description "${{ parameters.Description }}"
+    --source-branch "${{ parameters.SourceBranch }}"
+    --target-branch "${{ parameters.TargetBranch }}"
+  displayName: ${{ parameters.DisplayName }}
+  env:
+    AZURE_DEVOPS_EXT_PAT: $(AZP_PAT)

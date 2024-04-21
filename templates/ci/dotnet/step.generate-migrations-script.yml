@@ -1,0 +1,109 @@
+parameters:
+- name: ProjectDirectory
+  type: string
+- name: DbContext
+  type: string
+- name: ScriptOutput
+  type: string
+- name: UseIdempotency
+  type: boolean
+  default: true
+- name: Sanitize
+  type: boolean
+  default: true
+- name: SanitizerScript
+  type: string
+- name: SanitizedScriptOutput
+  type: string
+- name: NodeVersion
+  type: string
+  default: 20.x
+- name: FromMigration
+  type: string
+  default: ' '
+- name: ToMigration
+  type: string
+  default: ' '
+- name: WorkingDirectory
+  type: string
+  default: '$(System.DefaultWorkingDirectory)'
+- name: Configuration
+  type: string
+  default: Release
+- name: PublishArtifacts
+  type: boolean
+  default: true
+- name: DisplayName
+  type: string
+  default: '[Dotnet] Generate scripts'
+
+steps:
+
+- ${{ if and(gt(length(parameters.FromMigration), 4), gt(length(parameters.ToMigration), 4)) }}: # 4 represent a tabulation which may not be seen by dev and consider as 4 characters by compiler
+  - ${{ if eq(parameters.UseIdempotency, true) }}:
+    - script: >
+        dotnet ef migrations script ${{ parameters.FromMigration }} ${{ parameters.ToMigration }} --idempotent
+        --project ${{ parameters.ProjectDirectory }} --context ${{ parameters.DbContext }}
+        --configuration ${{ parameters.Configuration }} --output '${{ parameters.ScriptOutput }}'
+      displayName: '${{ parameters.DisplayName }} (--idempotent)'
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+  - ${{ else }}:
+    - script: >
+        dotnet ef migrations script ${{ parameters.FromMigration }} ${{ parameters.ToMigration }}
+        --project ${{ parameters.ProjectDirectory }} --context ${{ parameters.DbContext }}
+        --configuration ${{ parameters.Configuration }} --output '${{ parameters.ScriptOutput }}'
+      displayName: ${{ parameters.DisplayName }}
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- ${{ elseif and(gt(length(parameters.FromMigration), 4), le(length(parameters.ToMigration), 4)) }}:
+  - ${{ if eq(parameters.UseIdempotency, true) }}:
+    - script: >
+        dotnet ef migrations script ${{ parameters.FromMigration }} --idempotent
+        --project ${{ parameters.ProjectDirectory }} --context ${{ parameters.DbContext }}
+        --configuration ${{ parameters.Configuration }} --output '${{ parameters.ScriptOutput }}'
+      displayName: '${{ parameters.DisplayName }} (--idempotent)'
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+  - ${{ else }}:
+    - script: >
+        dotnet ef migrations script ${{ parameters.FromMigration }}
+        --project ${{ parameters.ProjectDirectory }} --context ${{ parameters.DbContext }}
+        --configuration ${{ parameters.Configuration }} --output '${{ parameters.ScriptOutput }}'
+      displayName: ${{ parameters.DisplayName }}
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+      
+- ${{ else }}:
+  - ${{ if eq(parameters.UseIdempotency, true) }}:
+    - script: >
+        dotnet ef migrations script --idempotent
+        --project ${{ parameters.ProjectDirectory }} --context ${{ parameters.DbContext }}
+        --configuration ${{ parameters.Configuration }} --output '${{ parameters.ScriptOutput }}'
+      displayName: '${{ parameters.DisplayName }} (--idempotent)'
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+  - ${{ else }}:
+    - script: >
+        dotnet ef migrations script ${{ parameters.FromMigration }}
+        --project ${{ parameters.ProjectDirectory }} --context ${{ parameters.DbContext }}
+        --configuration ${{ parameters.Configuration }} --output '${{ parameters.ScriptOutput }}'
+      displayName: ${{ parameters.DisplayName }}
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- ${{ if eq(parameters.Sanitize, true) }}:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: ${{ parameters.NodeVersion }}
+    displayName: '[Node] Use V${{ parameters.NodeVersion }}'
+
+  - script: node ${{ parameters.SanitizerScript }} ${{ parameters.ScriptOutput }} ${{ parameters.SanitizedScriptOutput }}
+    displayName: '[Node] Sanitize scripts'
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- ${{ if eq(parameters.PublishArtifacts, true) }}:
+  - task: PublishBuildArtifacts@1
+    displayName: '[Publish] scripts'
+    condition: succeededOrFailed()
+    inputs:
+      ${{ if eq(parameters.Sanitize, true) }}:
+        pathtoPublish: '${{ parameters.SanitizedScriptOutput }}'
+      ${{ else }}:
+        pathtoPublish: '${{ parameters.ScriptOutput }}'
+      artifactName: 'scripts'

@@ -1,0 +1,33 @@
+parameters:
+- name: FlywayCommand
+  type: string
+- name: JobName
+  type: string
+- name: RequireValidation
+  type: boolean
+- name: Validators
+  type: string
+- name: ValidationInstructions
+  type: string
+  default: 'Please validate before resume'
+
+jobs:
+- ${{ if or(eq(parameters.RequireValidation, true), contains(lower(parameters.FlywayCommand), 'clean')) }}:
+  - job: ${{ parameters.JobName }}
+    displayName: 'Require validation'
+    timeoutInMinutes: 4320 # job times out in 3 days
+    pool: server
+    steps:
+    - task: ManualValidation@0
+      displayName: 'Wait for validation'
+      inputs:
+        notifyUsers: '${{ parameters.Validators }}'
+        ${{ if contains(lower(parameters.FlywayCommand), 'clean') }}:
+          instructions: 'ATTENTION! This execution will drop database(s). ${{ parameters.ValidationInstructions }}'
+        ${{ else }}:
+          instructions: '${{ parameters.ValidationInstructions }}'
+
+- ${{ else }}:
+  - job: ${{ parameters.JobName }}
+    pool: server
+    displayName: 'Skip validation'

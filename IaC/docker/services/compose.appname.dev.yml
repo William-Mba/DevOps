@@ -1,0 +1,18 @@
+version: '3.8'
+
+name: school_dev
+
+services:
+  socle:
+    extends:
+      file: base.yml
+      service: api_socle
+    networks:
+      school:
+        ipv4_address: 172.16.238.23
+    ports:
+    - "8080-8888:80"
+        
+networks:
+  school:
+    external: true

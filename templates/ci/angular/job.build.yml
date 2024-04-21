@@ -1,0 +1,47 @@
+parameters:
+- name: ProjectName
+  type: string
+- name: NodeVersion
+  type: string
+  default: '20.x'
+- name: ExecuteBuild
+  default: true
+- name: FetchSubmodules
+  default: true
+- name: Checkouts
+  type: object
+  default: []
+- name: WorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)
+- name: SocleWorkingDirectory
+  type: string
+  default: $(Pipeline.Workspace)/finances-fm/finances/angular
+- name: InstallNode
+  type: boolean
+  default: true
+
+jobs:
+- ${{ if eq(parameters.ExecuteBuild, true) }}:
+  - job: Build
+    displayName: Build ${{parameters.ProjectName}}
+    steps:
+
+    - template: ../shared/step.checkout.yml
+      parameters:
+        Checkouts: ${{ parameters.Checkouts }}
+
+    - template: step.useNode.yml
+      parameters:
+        NodeVersion: ${{ parameters.NodeVersion }}
+    
+    - template: step.installDependencies.yml
+      parameters:
+        WorkingDirectory: ${{ parameters.SocleWorkingDirectory }}
+
+    - template: step.pubish.yml
+      parameters:
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+        CommandsToExecuteBeforePublish:
+        - script: ln -s ${{ parameters.SocleWorkingDirectory }}/node_modules/ node_modules
+          displayName: Create symbolic

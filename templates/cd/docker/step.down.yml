@@ -1,0 +1,41 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+- name: EnvironmentFile
+  type: string
+  default: ''
+- name: ComposeFile
+  type: string
+- name: CommandsToExecuteBefore
+  type: object
+
+steps:
+- ${{ if ne(length(parameters.CommandsToExecuteBefore), 0) }}:
+  - ${{ each command in parameters.CommandsToExecuteBefore }}:
+    - script: ${{ command.script }}
+      ${{ if ne(length(command.displayName), 0) }}:
+        displayName: ${{ command.displayName }}
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+      continueOnError: true
+
+- ${{ if and(ne(length(parameters.EnvironmentFile), 0), ne(length(parameters.ComposeFile), 0)) }}:
+  - script: >
+      docker-compose --env-file ${{ parameters.EnvironmentFile }}
+      -f ${{ parameters.ComposeFile }} down --rmi all
+    displayName: Remove container(s) and image(s)
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    
+- ${{ elseif and(eq(length(parameters.EnvironmentFile), 0), ne(length(parameters.ComposeFile), 0)) }}:
+  - script: docker-compose -f ${{ parameters.ComposeFile }} down --rmi all
+    displayName: Remove container(s) and image(s)
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+    
+- ${{ elseif and(ne(length(parameters.EnvironmentFile), 0), eq(length(parameters.ComposeFile), 0)) }}:
+  - script: docker-compose --env-file ${{ parameters.EnvironmentFile }} down --rmi all
+    displayName: Remove container(s) and image(s)
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+
+- ${{ elseif and(eq(length(parameters.EnvironmentFile), 0), eq(length(parameters.ComposeFile), 0)) }}:
+  - script: docker-compose down --rmi all
+    displayName: Remove container(s) and image(s)
+    workingDirectory: ${{ parameters.WorkingDirectory }}

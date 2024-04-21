@@ -1,0 +1,10 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+- name: ProjectDirectory
+  type: string
+
+steps:   
+- script: dotnet restore ${{ parameters.ProjectDirectory }}
+  displayName: '[Dotnet] Restore'
+  workingDirectory: ${{ parameters.WorkingDirectory }}

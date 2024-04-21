@@ -1,0 +1,11 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+
+steps:
+- script: |
+    npm install --global @angular/cli 
+    npm install --global yarn
+    yarn install --frozen-lockfile
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+  displayName: "Install dependencies"

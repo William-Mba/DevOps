@@ -1,0 +1,11 @@
+parameters:
+- name: DotnetSdkVersion
+  type: string
+  default: 7.x
+
+steps:
+- task: UseDotNet@2
+  displayName: '[Dotnet] Use V${{ parameters.DotnetSdkVersion }}'
+  inputs:
+    packageType: 'sdk'
+    version: ${{ parameters.DotnetSdkVersion }}

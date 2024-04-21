@@ -1,0 +1,5 @@
+steps:
+- script:
+    file_ext=".sql"
+    folder="/path/to/folder"
+    changed_or_new_files=$(git diff --name-only HEAD^..HEAD -- "$folder/*$file_ext"

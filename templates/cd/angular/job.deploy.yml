@@ -1,0 +1,78 @@
+parameters:
+- name: Tags
+  type: string
+  default: ''
+- name: JobName
+  type: string
+  default: Deploy
+- name: Contents
+  type: string
+  default: "**"
+- name: Downloads
+  type: object
+- name: Validators
+  type: string
+- name: OverWrite
+  type: boolean
+  default: true
+- name: Environment
+  type: string
+- name: SourceFolder
+  type: string
+- name: TargetFolder
+  type: string
+- name: ResourceName
+  type: string
+  default: ''
+- name: DeploymentSlot
+  type: string
+- name: RequireValidation
+  type: boolean
+  default: true
+- name: CleanTargetFolder
+  type: boolean
+  default: true
+
+jobs:
+- template: ../common/job.validate.yml
+  parameters:
+    Validators: ${{ parameters.Validators }}
+    RequireValidation: ${{ parameters.RequireValidation }}
+
+- deployment: ${{ parameters.JobName }}_${{ upper(parameters.DeploymentSlot) }}
+  dependsOn: Validate
+  displayName: 'Deploy ${{ upper(parameters.DeploymentSlot) }}'
+  environment:
+    name: ${{ parameters.Environment }}
+    tags: ${{ parameters.Tags }}
+  workspace: 
+    clean: all
+  strategy:
+    runOnce:
+      deploy:
+        steps:        
+
+        - template: ../common/step.download.yml
+          parameters:
+            Downloads: ${{ parameters.Downloads }}
+        
+        - bash: |
+            echo '[ SOURCE STATE => ${{ parameters.SourceFolder }} ]'
+            ls ${{ parameters.SourceFolder }} -l
+            echo ''
+            echo '|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||'
+            echo ''
+            echo '[ TARGET STATE => ${{ parameters.TargetFolder }} ]'
+            ls ${{ parameters.TargetFolder }} -l
+          displayName: Get folders state
+
+        - task: CopyFiles@2
+          displayName: Deploy
+          inputs:
+            retryCount: '3'
+            delayBetweenRetries: 3000
+            Contents: ${{ parameters.Contents }}
+            OverWrite: ${{ parameters.OverWrite }}
+            SourceFolder: ${{ parameters.SourceFolder }}
+            TargetFolder: ${{ parameters.TargetFolder }}
+            CleanTargetFolder: ${{ parameters.CleanTargetFolder }}

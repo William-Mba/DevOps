@@ -1,0 +1,11 @@
+parameters:
+- name: Downloads
+  type: object
+  default: []
+
+steps:
+- ${{ if ne(length(parameters.Downloads), 0) }}:
+  - ${{ each src in parameters.Downloads }}:
+    - download: ${{ src.download }}
+      artifact: ${{ src.artifact }}
+      displayName: Download artifact (${{ src.artifact }})

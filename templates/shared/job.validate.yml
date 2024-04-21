@@ -1,0 +1,25 @@
+parameters:
+- name: RequireValidation
+  type: boolean
+- name: Validators
+  type: string
+- name: ValidationInstructions
+  type: string
+  default: 'Please validate the deployment configuration and resume'
+
+jobs:
+- ${{ if eq(parameters.RequireValidation, true) }}:
+  - job: Validate
+    timeoutInMinutes: 360 # job times out in 6 hours
+    pool: server
+    steps:
+    - task: ManualValidation@0
+      displayName: Require validation
+      inputs:
+        notifyUsers: '${{ parameters.Validators }}'
+        instructions: '${{ parameters.ValidationInstructions }}'
+
+- ${{ else }}:
+  - job: Validate
+    pool: server
+    displayName: Skip validation

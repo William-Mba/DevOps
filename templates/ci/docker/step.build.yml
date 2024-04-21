@@ -1,0 +1,71 @@
+parameters:
+- name: UseDockerTask
+  type: boolean
+  default: false
+- name: BuildAndPush
+  type: boolean
+  default: false
+- name: Dockerfile
+  type: string
+  default: '**/*Dockerfile'
+- name: ContainerRegistry
+  type: string
+- name: Command
+  type: string
+  default: buildAndPush
+- name: DisplayName
+  type: string
+  default: '[Docker] Build'
+- name: ImageRepository
+  type: string
+- name: Tags
+  type: string
+  default: |
+    $(Build.BuildId)
+    $(Build.SourceBranchName)
+- name: WorkingDirectory
+  type: string
+  default: $(Build.SourcesDirectory)
+- name: ProjectName
+  type: string
+  default: ''
+- name: BuildFor
+  type: string
+  default: ''
+- name: TargetStage
+  type: string
+  default: extract-artifacts
+
+steps:
+${{ if eq(parameters.UseDockerTask, true) }}:
+  - task: Docker@2
+    ${{ if eq(parameters.BuildAndPush, true) }}:
+      displayName: '${{ parameters.DisplayName }} And Push'
+    ${{ else }}:
+      displayName: ${{ parameters.DisplayName }}
+    inputs:
+      ${{ if eq(parameters.BuildAndPush, true) }}:
+        command: buildAndPush
+        containerRegistry: ${{ parameters.ContainerRegistry }}
+        repository: ${{ parameters.ImageRepository }}
+      ${{ else }}:
+        command: build
+      Dockerfile: ${{ parameters.Dockerfile }}
+      buildContext: '**'
+      tags: ${{ parameters.Tags }}
+${{ else }}:
+  - ${{ if and(ne(length(parameters.BuildFor), 0), eq(parameters.BuildFor, 'CI')) }}:
+    - bash: >
+        docker buildx build -f ${{ parameters.Dockerfile }}
+        --build-arg PROJECT=${{ parameters.ProjectName }} -t ${{ parameters.ImageRepository }}:${{ parameters.Tag }}
+        --target ${{ parameters.TargetStage }} --output type=local,dest=artifacts .
+      displayName: "${{ parameters.DisplayName }} - CI"
+      workingDirectory: ${{ parameters.WorkingDirectory }}
+
+  - ${{ else }}:
+    - bash: >
+        docker buildx build -f ${{ parameters.Dockerfile }}
+        --build-arg PROJECT=${{ parameters.ProjectName }}
+        -t ${{ parameters.ImageRepository }}:${{ parameters.Tag }} --target ${{ parameters.TargetStage }} .
+      displayName: "[Docker] Build - Tag: ${{ parameters.Tag }}"
+      workingDirectory: ${{ parameters.WorkingDirectory }}

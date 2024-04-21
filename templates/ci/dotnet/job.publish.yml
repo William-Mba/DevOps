@@ -1,0 +1,87 @@
+parameters:
+- name: DotnetSdkVersion
+  type: string
+  default: 7.x
+- name: ProjectDirectory
+  type: string
+- name: MigrationsProjectDirectory
+  type: string
+- name: MigrationsDbContext
+  type: string
+- name: GeneratedFileName
+  type: string
+- name: UseIdempotency
+  type: boolean
+  default: true
+- name: Sanitize
+  type: boolean
+  default: true
+- name: FromMigration
+  type: string
+  default: ''
+- name: ToMigration
+  type: string
+  default: ''
+- name: WorkingDirectory
+  type: string
+  default: '$(System.DefaultWorkingDirectory)'
+- name: ProjectName
+  type: string
+- name: ArtifactName
+  type: string
+- name: DockerRepository
+  type: string
+- name: DockerRegistry
+  type: string
+- name: ImageTags
+  type: string
+- name: ExecutePublish
+  type: boolean
+  default: true
+- name: PublishDockerImage
+  type: boolean
+  default: false
+- name: Checkouts
+  type: object
+  default: []
+
+jobs:
+- ${{ if eq(parameters.ExecutePublish, true) }}:
+  - job: Publish
+    displayName: Publish ${{ parameters.ProjectName }}
+    steps:
+
+    - template: ../shared/step.checkout.yml
+      parameters:
+        Checkouts: ${{ parameters.Checkouts }}
+
+    - template: step.useDotnetSdk.yml
+      parameters:
+        DotnetSdkVersion: ${{ parameters.DotnetSdkVersion }}
+
+    - template: step.publish.yml
+      parameters:
+        ArtifactName: ${{ parameters.ArtifactName }}
+        ProjectDirectory: ${{ parameters.ProjectDirectory }}
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+    - template: step.generateAndPublishMigrationsScript.yml
+      parameters:
+        ProjectDirectory: ${{ parameters.MigrationsProjectDirectory }}
+        DbContext: ${{ parameters.MigrationsDbContext }}
+        FromMigration: ${{ parameters.FromMigration }}
+        ToMigration: ${{ parameters.ToMigration }}
+        UseIdempotency: ${{ parameters.UseIdempotency }}
+        ScriptOutput: '$(Build.ArtifactStagingDirectory)/scripts/${{ parameters.GeneratedFileName }}.sql'
+        Sanitize: ${{ parameters.Sanitize }}
+        SanitizerScript: 'finances/aspnet-core/scripts/sanitize-migrations-script.js'
+        SanitizedScriptOutput: '$(Agent.TempDirectory)/scripts/${{ parameters.GeneratedFileName }}.sql'
+        WorkingDirectory: ${{ parameters.WorkingDirectory }}
+
+    - ${{ if eq(parameters.PublishDockerImage, true ) }}:
+      - template: ../shared/step.buildAndPushDockerImage.yml
+        parameters:
+          Dockerfile: '$(Build.ArtifactStagingDirectory)/publish/$(Build.BuildNumber)/Dockerfile'
+          ContainerRegistry: ${{ parameters.DockerRegistry }}
+          Repository: ${{ parameters.DockerRepository }}
+          Tags: ${{ parameters.ImageTags }}

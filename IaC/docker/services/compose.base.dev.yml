@@ -1,0 +1,61 @@
+#redis		          IP: 172.16.238.20
+#redis_insight-1		IP: 172.16.238.21
+#mailpit-1			  	IP: 172.16.238.22
+#gidoc-1			    	IP: 172.16.238.25
+
+version: '3.8'
+
+name: aurora_dev
+
+services:
+  nginx:
+    extends: 
+      file: base.yml
+      service: nginx
+    networks:
+      aurora:
+        ipv4_address: 172.16.238.10
+
+  stackify:
+    extends:
+      file: base.yml
+      service: stackify
+    networks:
+      aurora:
+        ipv4_address: 172.16.238.11
+
+  gidoc:
+    extends:
+      file: base.yml
+      service: gidoc
+    networks:
+      aurora:
+        ipv4_address: 172.16.238.25
+
+  redis:
+    extends:
+      file: base.yml
+      service: redis
+    networks:
+      aurora:
+        ipv4_address: 172.16.238.20
+
+  redis_insight:
+    extends:
+      file: base.yml
+      service: redis_insight
+    networks:
+      aurora:
+        ipv4_address: 172.16.238.21
+
+  mailpit:
+    extends:
+      file: base.yml
+      service: mailpit
+    networks:
+      aurora:
+        ipv4_address: 172.16.238.22
+
+networks:
+  aurora:
+    external: true

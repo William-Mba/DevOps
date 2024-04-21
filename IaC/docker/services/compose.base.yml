@@ -1,0 +1,207 @@
+version: '3.8'
+
+services:
+# Internals services declaration start here ----------------------------------------------------------------------------------------
+  nginx:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_NGINX}:${CUSTOM_IMAGE_TAG}
+    hostname: ${AURORA_NGINX}
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    restart: ${RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    ports:
+    - "4343-4433:443"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: 5
+        max-size: 10m
+    volumes:
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/html:/usr/share/nginx/html:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/conf/suiteaurora.conf:/etc/nginx/conf.d/default.conf:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/conf/include:/etc/nginx/include:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/conf/filter:/etc/nginx/filter:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/geo_data/GeoIP.dat:/etc/nginx/GeoIP.dat:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_NGINX}/nginx/geo_data/GeoIPCity.dat:/etc/nginx/GeoIPCity.dat:ro
+    - /docker-persist/nginx_common/snippets/ssl-certs_suiteaurora.conf:/etc/nginx/snippets/ssl-certs_suiteaurora.conf:ro
+    - /docker-persist/nginx_common/snippets/ssl-params.conf:/etc/nginx/snippets/ssl-params.conf:ro
+    - /docker-persist/certs/origin_${ENVIRONMENT_NAME}_suiteaurora_cert.pem:/etc/nginx/certs/origin_suiteaurora_cert.pem:ro
+    - /docker-persist/certs/origin_${ENVIRONMENT_NAME}_suiteaurora_priv.pem:/etc/nginx/certs/origin_suiteaurora_priv.pem:ro
+    environment:
+    - TZ=America/New_York
+
+  api_socle :
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_SOCLE_API}:${CUSTOM_IMAGE_TAG}
+    hostname: ${AURORA_SOCLE}
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: 5
+        max-size: 10m
+    restart: ${RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+    volumes:
+    - /docker-persist/logs/${STACK_NAME}/${AURORA_SOCLE}/aspnet/logs/:/var/opt/data/logs/:rw
+    - /docker-persist/certs/origin_ca_ecc_root.pem:/etc/ssl/certs/ca-certificates.crt:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_SOCLE}/aspnet/DataProtection-Keys/:/root/.aspnet/DataProtection-Keys/:rw
+    environment:
+    - AURORA_SERVER_ID=${AURORA_SOCLE}
+    - TZ=America/New_York
+    - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT_NAME}
+    - ConnectionStrings__Default=${DEFAULT_CONNECTION_STRING}
+    - App__ServerRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/api
+    - App__ClientRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}
+    - App__CorsOrigins=https://${ENVIRONMENT_NAME}.${AURORA_DNS},https://*.${ENVIRONMENT_NAME}.${AURORA_DNS}
+    - App__SwaggerEndPoint=/swagger/FinancesAPI/swagger.json
+    - App__SwaggerEndPointPublicAPI=/swagger/PublicAPI/swagger.json
+    - App__BackendReverseProxyPath=api
+    - App__IsFinancesAPIVisible=false
+    - HealthChecks__HealthChecksEnabled=true
+    - HealthChecks__HealthChecksUI__HealthChecks__Uri=${HEALTHCHECKS_URI}
+    - Abp__RedisCache__IsEnabled=true
+    - Abp__RedisCache__ConnectionString=${REDIS}:6379
+    - Abp__RedisCache__DatabaseId=0
+    - GRAYLOG_TAG=aurora_tag_for_graylog_${AURORA_SOCLE}
+    - Gidoc__BaseUrl=http://${AURORA_GIDOC}
+    - Gidoc__User=${GIDOC_USER}
+    - Gidoc__Password=${GIDOC_PASSWORD}
+    - Finances__SendEmail=true
+    - Finances__EmailSenderType=default
+    - Finances__EmailProvider=sendgrid
+    - Finances__SendGridApiKey=${SEND_GRID_API_KEY}
+
+  api_gf:
+    extends:
+      service: api_socle
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_FM_API}:wm-82348-redefinition-pipelines-cd #TOD Rmove this
+    hostname: ${AURORA_FM}
+    volumes:
+    - /docker-persist/logs/${STACK_NAME}/${AURORA_FM}/aspnet/logs/:/var/opt/data/logs/:rw
+    environment:
+    - AURORA_SERVER_ID=${AURORA_FM}
+    - App__ServerRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/gf/api
+    - App__ClientRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/gf
+    - App__BackendReverseProxyPath=gf/api
+
+  api_grh:
+    extends:
+      service: api_socle
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_GRH_API}:${CUSTOM_IMAGE_TAG}
+    hostname: ${AURORA_GRH}
+    volumes:
+    - /docker-persist/logs/${STACK_NAME}/${AURORA_GRH}/aspnet/logs/:/var/opt/data/logs/:rw
+    environment:
+    - AURORA_SERVER_ID=${AURORA_GRH}
+    - App__ServerRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/grh/api
+    - App__ClientRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/grh
+    - App__BackendReverseProxyPath=grh/api
+
+  api_grp:
+    extends:
+      service: api_socle
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_GRP_API}:${CUSTOM_IMAGE_TAG}
+    hostname: ${AURORA_GRP}
+    volumes:
+    - /docker-persist/logs/${STACK_NAME}/${AURORA_GRP}/aspnet/logs/:/var/opt/data/logs/:rw
+    environment:
+    - AURORA_SERVER_ID=${AURORA_GRP}
+    - App__ServerRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/grp/api
+    - App__ClientRootAddress=https://{TENANCY_NAME}.${ENVIRONMENT_NAME}.${AURORA_DNS}/grp
+    - App__BackendReverseProxyPath=grp/api
+
+  gidoc:
+    hostname: ${AURORA_GIDOC}
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_GIDOC}:${CUSTOM_IMAGE_TAG}
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    restart: ${RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2048M
+    volumes:
+    - /docker-persist/${STACK_NAME}/${AURORA_GIDOC}/data/working:/var/opt/data/working:rw
+    - /docker-persist/${STACK_NAME}/${AURORA_GIDOC}/data/target:/var/opt/data/target:rw
+    - /docker-persist/${STACK_NAME}/${AURORA_GIDOC}/appsettings.json:/app/appsettings.json:ro
+    - /docker-persist/${STACK_NAME}/${AURORA_GIDOC}/appsettings.Developement.json:/app/appsettings.Developement.json:ro
+    environment: 
+    - TZ=America/New_York
+    - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT_NAME}
+    - ASPNETCORE_URLS=http://+:80
+
+# End of internal services declaration ------------------------------------------------------------------------------------
+
+# Externals services declaration start here -------------------------------------------------------------------------------
+  redis:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_REDIS}:${CUSTOM_IMAGE_TAG}
+    hostname: ${REDIS}
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    restart: ${RESTART_POLICY}
+    ports:
+    - "6379-6397:6379"
+    volumes:
+    - redis_data:/data
+    - /docker-persist/${STACK_NAME}/${REDIS}/redis.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+
+
+  redis_insight:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_REDIS_INSIGHT}:${CUSTOM_IMAGE_TAG}
+    hostname: ${REDIS_INSIGHT}
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    restart: ${RESTART_POLICY}
+    environment: 
+    - TZ=America/New_York
+    - RIHOMEDIR=/db
+    - RIPROXYENABLE=true
+    - RIPROXYPATH=/redis
+    - RITRUSTEDORIGINS=https://${ENVIRONMENT_NAME}.${AURORA_DNS}
+    volumes:
+    - redis_insight_data:/db
+
+  mailpit:
+    hostname: ${MAILPIT}
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_MAILPIT}:${CUSTOM_IMAGE_TAG}
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    restart: ${RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    ports:
+    - "1025-1052:1025"
+
+  stackify:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY_STACKIFY}:${CUSTOM_IMAGE_TAG}
+    environment:
+    - STACKIFY_KEY=${STACKIFY_KEY}
+    - STACKIFY_ENV=Aurora
+    labels:
+    - "io.portainer.accesscontrol.teams=Aurora"
+    user: 0:0
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+    volumes:
+    - stackify:/var/stackify
+    - /:/hostfs:ro
+
+# End of externals services declaration ----------------------------------------------------------------------------------------

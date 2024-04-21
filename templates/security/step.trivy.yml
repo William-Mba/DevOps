@@ -1,0 +1,38 @@
+# This extension is required to use this task  
+# https://marketplace.visualstudio.com/items?itemName=AquaSecurityOfficial.trivy-official
+
+parameters:
+- name: PathToScan
+  type: string
+- name: Version
+  type: string
+  default: 'latest'
+- name: ImageToScan
+  type: string
+  default: ''
+
+steps:
+- task: DeleteFiles@1
+  displayName: '[Trivy] Prepare scanners'
+  inputs:
+    Contents: |
+      !(**/artifacts/*)
+    RemoveDotFiles: true
+    SourceFolder: $(Pipeline.Workspace)
+
+- task: trivy@1
+  continueOnError: true
+  displayName: '[Trivy] Run security scanners'
+  inputs:
+    path: .
+    exitCode: 1
+    Version: ${{ parameters.Version }}
+
+- ${{ if ne(length(parameters.ImageToScan), 0) }}:
+  - script: >
+      docker run --rm
+      -v $HOME/Library/Caches:/root/.cache/
+      -v /var/run/docker.sock:/var/run/docker.sock
+      aquasec/trivy:${{ parameters.Version }} image ${{ parameters.ImageToScan }}
+    displayName: "Trivy scan image"
+    continueOnError: true

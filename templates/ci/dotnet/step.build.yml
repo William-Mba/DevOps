@@ -1,0 +1,28 @@
+parameters:
+- name: WorkingDirectory
+  type: string
+- name: ProjectDirectory
+  type: string
+- name: BuildConfiguration
+  type: string
+  default: Release
+- name: Restore
+  type: boolean
+  default: false
+- name: DisplayName
+  type: string
+  default: '[Dotnet] Build'
+
+steps:
+- ${{ if eq(parameters.Restore, false) }}:
+  - script: >
+      dotnet build ${{ parameters.ProjectDirectory }} --no-restore
+      --configuration ${{ parameters.BuildConfiguration }} 
+    displayName: ${{ parameters.DisplayName }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
+- ${{ else }}:
+  - script: >
+      dotnet build ${{ parameters.ProjectDirectory }}
+      --configuration ${{ parameters.BuildConfiguration }} 
+    displayName: ${{ parameters.DisplayName }}
+    workingDirectory: ${{ parameters.WorkingDirectory }}
